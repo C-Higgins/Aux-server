@@ -13,7 +13,7 @@ const historyFields = ['title', 'artist', 'album', 'albumURL']
 main()
 
 
-main = () => {
+function main() {
 	// When new room is created, add a track listener
 	db.ref('rooms').on('child_added').then(roomData => {
 		const roomKey = roomData.getKey()
@@ -35,7 +35,7 @@ main = () => {
 }
 
 //TODO: Also delete from bucket
-trackEnded = async (roomId) => {
+async function trackEnded(roomId) {
 	// get the track that is ending
 	const currentTrackRef = db.ref('room_data/' + roomId + '/current_track')
 	const ct = await currentTrackRef.once('value')
@@ -66,7 +66,7 @@ trackEnded = async (roomId) => {
 
 }
 
-getNextTrack = async (roomId) => {
+async function getNextTrack(roomId) {
 	const roomSongsObj = await db.ref('song_data/' + roomId).orderByChild('pending').equalTo(false).once('value')
 
 	if (roomSongsObj.exists()) {
@@ -89,7 +89,7 @@ getNextTrack = async (roomId) => {
 	return false
 }
 
-deleteTrack = (roomId, songId) => {
+function deleteTrack(roomId, songId) {
 	return Promise.all([
 		db.ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
 		db.ref('room_data/' + roomId + '/songs/pending/' + songId).remove(),
