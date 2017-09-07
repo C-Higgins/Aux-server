@@ -46,7 +46,7 @@ async function trackEnded(roomId) {
 	if (!ct) return false
 	console.log('ct was not false B')
 	const oldSongData = ct.val()
-	const songId = (ct && ct.getKey()) || null
+	const songId = oldSongData.key || null
 	if (!songId) return false
 
 	// Copy some stuff into history
@@ -120,7 +120,7 @@ async function deleteCtFromQueue(roomId) {
 	const ct = await getCurrentTrack(roomId)
 	if (!ct) return false
 	console.log('ct was not false A')
-	const songId = ct.key
+	const songId = ct.val().key
 	console.log('ct key is',songId)
 	return Promise.all([
 		admin.database().ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
