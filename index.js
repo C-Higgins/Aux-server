@@ -89,12 +89,13 @@ async function getNextTrack(roomId) {
 	return false
 }
 
-function deleteTrack(roomId, songId) {
+async function deleteTrack(roomId, songId) {
+	const oldSongData = await db.ref(`song_data/${roomId}/${songId}`).once('value')
 	return Promise.all([
 		db.ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
 		db.ref('room_data/' + roomId + '/songs/pending/' + songId).remove(),
 		db.ref('song_urls/' + songId).remove(),
-		storage.child(`songs/${oldSongData.name}`).delete(),
+		storage.child(`songs/${oldSongData.val().name}`).delete(),
 		db.ref(`song_data/${roomId}/${songId}`).remove(),
 	])
 
