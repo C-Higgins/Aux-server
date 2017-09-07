@@ -15,9 +15,9 @@ main()
 
 function main() {
 	// When new room is created, add a track listener
-	db.ref('rooms').on('child_added').then(roomData => {
+	db.ref('rooms').on('child_added', roomData => {
 		const roomKey = roomData.getKey()
-		db.ref(`room_data/${roomKey}/current_track/duration`).on('value').then(duration => {
+		db.ref(`room_data/${roomKey}/current_track/duration`).on('value', duration => {
 			const oldTimerId = roomTimerMap[roomKey]
 			if (oldTimerId) {
 				clearTimeout(oldTimerId)
@@ -27,7 +27,7 @@ function main() {
 	})
 
 	// When room is deleted, remove from mapping and stop timer
-	db.ref('rooms').on('child_removed').then(roomData => {
+	db.ref('rooms').on('child_removed', roomData => {
 		const roomKey = roomData.getKey()
 		clearTimeout(roomTimerMap[roomKey])
 		delete roomTimerMap[roomKey]
