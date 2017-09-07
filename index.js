@@ -3,7 +3,7 @@ const serviceAccount = require('./serviceAccountKey.json') //do not put this in 
 
 admin.initializeApp({
 	credential:  admin.credential.cert(serviceAccount),
-	databaseURL: "https://aux-io.firebaseio.com"
+	databaseURL: "https://aux-io.firebaseio.com",
 	storageBucket: "aux-io.appspot.com",
 });
 const db = admin.database()
