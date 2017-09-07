@@ -19,10 +19,13 @@ function main() {
 	db.ref('rooms').on('child_added', roomData => {
 		const roomId = roomData.getKey()
 		db.ref(`room_data/${roomId}/current_track/duration`).on('value', duration => {
+			console.log('current track duration change')
+			if (!duration.exists()) return false
 			const oldTimerId = roomTimerMap[roomId]
 			if (oldTimerId) {
 				clearTimeout(oldTimerId)
 			}
+			console.log('setting timer')
 			roomTimerMap[roomId] = setTimeout(()=>trackEnded(roomId), duration.val() * 1000)
 			deleteCtFromQueue(roomId)
 		})
@@ -40,6 +43,8 @@ function main() {
 async function trackEnded(roomId) {
 	// get the track that is ending
 	const ct = await getCurrentTrack(roomId)
+	if (!ct) return false
+	console.log('ct was not false B')
 	const oldSongData = ct.val()
 	const songId = (ct && ct.getKey()) || null
 	if (!songId) return false
@@ -56,6 +61,7 @@ async function trackEnded(roomId) {
 	// after track ends, start the next one
 	const currentTrackRef = db.ref('room_data/' + roomId + '/current_track')
 	getNextTrack(roomId).then(nextTrack => {
+		console.log('got next track:', nextTrack)
 		if (nextTrack) {
 			currentTrackRef.set(nextTrack)
 		} else {
@@ -70,9 +76,11 @@ async function trackEnded(roomId) {
 
 //gets the next track from song data
 async function getNextTrack(roomId) {
+	console.log('getting next track')
 	const roomSongsObj = await db.ref('song_data/' + roomId).orderByChild('pending').equalTo(false).once('value')
 
 	if (roomSongsObj.exists()) {
+		console.log('song data exists')
 		const songs = Object.entries(roomSongsObj.val())
 		const numberOfSongs = songs.length
 		const rand = Math.floor(Math.random() * numberOfSongs)
@@ -80,9 +88,11 @@ async function getNextTrack(roomId) {
 		const songUrlObj = await db.ref('song_urls/' + nextTrackId).once('value')
 
 		if (songUrlObj.exists()) {
+			console.log('song url exists')
 			return {...nextTrack, url: songUrlObj.val(), key: nextTrackId, startedAt: Date.now() + 500}
 		} else {
 			// url doesn't exist for some reason so we can't play this
+			console.log('url doesnt exist')
 			await deleteTrack(roomId, nextTrackId)
 			return getNextTrack(roomId)
 		}
@@ -94,6 +104,7 @@ async function getNextTrack(roomId) {
 
 // delete given song from everywhere
 async function deleteTrack(roomId, songId, fileName) {
+	console.log('deleting song from everywhere')
 	return Promise.all([
 		db.ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(), //unneeded probably 
 		db.ref('room_data/' + roomId + '/songs/pending/' + songId).remove(),
@@ -105,14 +116,17 @@ async function deleteTrack(roomId, songId, fileName) {
 }
 
 async function deleteCtFromQueue(roomId) {
+	console.log('deleting ct from queue')
 	const ct = await getCurrentTrack(roomId)
-	if (!ct) {return}
+	if (!ct) return false
+	console.log('ct was not false A')
 	const songId = ct.getKey()
 	admin.database().ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
-	admin.database().ref('song_data/' + roomId + '/' + songId).remove(),
+	admin.database().ref('song_data/' + roomId + '/' + songId).remove()
 }
 
 function getCurrentTrack(roomId){
+	console.log('getting current track')
 	db.ref('room_data/' + roomId + '/current_track').once('value').then(ct => {
 		return ct.exists() && ct
 	})
