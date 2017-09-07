@@ -4,9 +4,10 @@ const serviceAccount = require('./serviceAccountKey.json') //do not put this in 
 admin.initializeApp({
 	credential:  admin.credential.cert(serviceAccount),
 	databaseURL: "https://aux-io.firebaseio.com"
+	storageBucket: "aux-io.appspot.com",
 });
 const db = admin.database()
-const storage = admin.storage()
+const storage = admin.storage().bucket()
 
 let roomTimerMap = {} // {roomid: timerid}
 const historyFields = ['title', 'artist', 'album', 'albumURL']
@@ -95,7 +96,7 @@ async function deleteTrack(roomId, songId) {
 		db.ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
 		db.ref('room_data/' + roomId + '/songs/pending/' + songId).remove(),
 		db.ref('song_urls/' + songId).remove(),
-		storage.child(`songs/${oldSongData.val().name}`).delete(),
+		storage.file(`songs/${oldSongData.val().name}`).delete(),
 		db.ref(`song_data/${roomId}/${songId}`).remove(),
 	])
 
