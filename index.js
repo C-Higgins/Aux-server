@@ -27,7 +27,7 @@ function main() {
 			}
 			console.log('setting timer')
 			roomTimerMap[roomId] = setTimeout(()=>trackEnded(roomId), duration.val() * 1000)
-			deleteCtFromQueue(roomId)
+			return deleteCtFromQueue(roomId)
 		})
 	})
 
@@ -71,7 +71,7 @@ async function trackEnded(roomId) {
 	})
 
 	// remove trace of the old song
-	deleteTrack(roomId, songId, oldSongData.name)
+	return deleteTrack(roomId, songId, oldSongData.name)
 }
 
 //gets the next track from song data
@@ -120,14 +120,17 @@ async function deleteCtFromQueue(roomId) {
 	const ct = await getCurrentTrack(roomId)
 	if (!ct) return false
 	console.log('ct was not false A')
-	const songId = ct.getKey()
-	admin.database().ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
-	admin.database().ref('song_data/' + roomId + '/' + songId).remove()
+	const songId = ct.key
+	console.log('ct key is',songId)
+	return Promise.all([
+		admin.database().ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
+		admin.database().ref('song_data/' + roomId + '/' + songId).remove(),
+		])
 }
 
 function getCurrentTrack(roomId){
 	console.log('getting current track')
-	db.ref('room_data/' + roomId + '/current_track').once('value').then(ct => {
+	return db.ref('room_data/' + roomId + '/current_track').once('value').then(ct => {
 		return ct.exists() && ct
 	})
 }
