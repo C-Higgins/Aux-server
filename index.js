@@ -22,7 +22,7 @@ function main() {
 			if (oldTimerId) {
 				clearTimeout(oldTimerId)
 			}
-			roomTimerMap[roomKey] = setTimeout(trackEnded(roomKey), duration.val() * 1000)
+			roomTimerMap[roomKey] = setTimeout(()=>trackEnded(roomKey), duration.val() * 1000)
 		})
 	})
 
