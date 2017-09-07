@@ -17,31 +17,31 @@ main()
 function main() {
 	// When new room is created, add a track listener
 	db.ref('rooms').on('child_added', roomData => {
-		const roomKey = roomData.getKey()
-		db.ref(`room_data/${roomKey}/current_track/duration`).on('value', duration => {
-			const oldTimerId = roomTimerMap[roomKey]
+		const roomId = roomData.getKey()
+		db.ref(`room_data/${roomId}/current_track/duration`).on('value', duration => {
+			const oldTimerId = roomTimerMap[roomId]
 			if (oldTimerId) {
 				clearTimeout(oldTimerId)
 			}
-			roomTimerMap[roomKey] = setTimeout(()=>trackEnded(roomKey), duration.val() * 1000)
+			roomTimerMap[roomId] = setTimeout(()=>trackEnded(roomId), duration.val() * 1000)
+			deleteCtFromQueue(roomId)
 		})
 	})
 
 	// When room is deleted, remove from mapping and stop timer
 	db.ref('rooms').on('child_removed', roomData => {
-		const roomKey = roomData.getKey()
-		clearTimeout(roomTimerMap[roomKey])
-		delete roomTimerMap[roomKey]
+		const roomId = roomData.getKey()
+		clearTimeout(roomTimerMap[roomId])
+		delete roomTimerMap[roomId]
 	})
 }
 
 //TODO: Also delete from bucket
 async function trackEnded(roomId) {
 	// get the track that is ending
-	const currentTrackRef = db.ref('room_data/' + roomId + '/current_track')
-	const ct = await currentTrackRef.once('value')
+	const ct = await getCurrentTrack(roomId)
 	const oldSongData = ct.val()
-	const songId = (oldSongData && oldSongData.key) || null
+	const songId = (ct && ct.getKey()) || null
 	if (!songId) return false
 
 	// Copy some stuff into history
@@ -53,20 +53,22 @@ async function trackEnded(roomId) {
 	}, {})
 	db.ref(`room_data/${roomId}/songs/history/${songId}`).set(historyData)
 
-	// remove trace of the old song
-	await deleteTrack(roomId, songId)
-
 	// after track ends, start the next one
-	const nextTrack = await getNextTrack(roomId)
-	if (nextTrack) {
-		currentTrackRef.set(nextTrack)
-	} else {
-		currentTrackRef.parent.child('track_playing').set(false)
-		currentTrackRef.remove()
-	}
+	const currentTrackRef = db.ref('room_data/' + roomId + '/current_track')
+	getNextTrack(roomId).then(nextTrack => {
+		if (nextTrack) {
+			currentTrackRef.set(nextTrack)
+		} else {
+			currentTrackRef.parent.child('track_playing').set(false)
+			currentTrackRef.remove()
+		}
+	})
 
+	// remove trace of the old song
+	deleteTrack(roomId, songId, oldSongData.name)
 }
 
+//gets the next track from song data
 async function getNextTrack(roomId) {
 	const roomSongsObj = await db.ref('song_data/' + roomId).orderByChild('pending').equalTo(false).once('value')
 
@@ -78,7 +80,7 @@ async function getNextTrack(roomId) {
 		const songUrlObj = await db.ref('song_urls/' + nextTrackId).once('value')
 
 		if (songUrlObj.exists()) {
-			return {...nextTrack, url: songUrlObj.val(), key: nextTrackId, startedAt: Date.now() + 200}
+			return {...nextTrack, url: songUrlObj.val(), key: nextTrackId, startedAt: Date.now() + 500}
 		} else {
 			// url doesn't exist for some reason so we can't play this
 			await deleteTrack(roomId, nextTrackId)
@@ -90,14 +92,28 @@ async function getNextTrack(roomId) {
 	return false
 }
 
-async function deleteTrack(roomId, songId) {
-	const oldSongData = await db.ref(`song_data/${roomId}/${songId}`).once('value')
+// delete given song from everywhere
+async function deleteTrack(roomId, songId, fileName) {
 	return Promise.all([
-		db.ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
+		db.ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(), //unneeded probably 
 		db.ref('room_data/' + roomId + '/songs/pending/' + songId).remove(),
 		db.ref('song_urls/' + songId).remove(),
-		storage.file(`songs/${oldSongData.val().name}`).delete(),
-		db.ref(`song_data/${roomId}/${songId}`).remove(),
+		storage.file(`songs/${fileName}`).delete(),
+		db.ref(`song_data/${roomId}/${songId}`).remove(), //unneeded probably 
 	])
 
+}
+
+async function deleteCtFromQueue(roomId) {
+	const ct = await getCurrentTrack(roomId)
+	if (!ct) {return}
+	const songId = ct.getKey()
+	admin.database().ref('room_data/' + roomId + '/songs/uploaded/' + songId).remove(),
+	admin.database().ref('song_data/' + roomId + '/' + songId).remove(),
+}
+
+function getCurrentTrack(roomId){
+	db.ref('room_data/' + roomId + '/current_track').once('value').then(ct => {
+		return ct.exists() && ct
+	})
 }
