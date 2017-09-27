@@ -60,13 +60,16 @@ async function trackEnded(roomId) {
 
 	// after track ends, start the next one
 	const currentTrackRef = db.ref('room_data/' + roomId + '/current_track')
+	const roomCardRef = db.ref('rooms/' + roomId + '/current_track')
 	getNextTrack(roomId).then(nextTrack => {
 		console.log('got next track:', nextTrack)
 		if (nextTrack) {
 			currentTrackRef.set(nextTrack)
+			roomCardRef.set(nextTrack)
 		} else {
 			currentTrackRef.parent.child('track_playing').set(false)
 			currentTrackRef.remove()
+			roomCardRef.remove()
 		}
 	})
 
