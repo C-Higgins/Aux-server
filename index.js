@@ -9,8 +9,10 @@ admin.initializeApp({
 const db = admin.database()
 const storage = admin.storage().bucket()
 
+const VOTE_THRESHOLD = .66
 let roomTimerMap = {} // {roomid: timerid}
 const historyFields = ['title', 'artist', 'album', 'albumURL']
+
 main()
 
 
@@ -29,6 +31,19 @@ function main() {
 			roomTimerMap[roomId] = setTimeout(()=>trackEnded(roomId), duration.val() * 1000)
 			return deleteCtFromQueue(roomId)
 		})
+
+		// Skip if voted on
+		db.ref(`room_data/${roomId}/votes`).on('value', async voteData => {
+			const numVotes = voteData.exists() && voteData.val()
+			if (!numVotes) return false
+			const usersData = await db.ref(`room_data/${roomId}/users`).once('value')
+			if (!usersData.exists()) return false
+			const numUsers = Object.keys(usersData.val()).length
+			if ((numVotes/numUsers)>=VOTE_THRESHOLD){
+				clearTimeout(roomTimerMap[roomId])
+				return trackEnded(roomId)
+			}
+		})
 	})
 
 	// When room is deleted, remove from mapping and stop timer
@@ -37,6 +52,8 @@ function main() {
 		clearTimeout(roomTimerMap[roomId])
 		delete roomTimerMap[roomId]
 	})
+
+
 }
 
 //TODO: Also delete from bucket
